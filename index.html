@@ -13,6 +13,8 @@
                 if (!(typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production'))) {
                     originalWarn.apply(console, args);
                 }
+
+
             };
         })();
     </script>
@@ -2592,7 +2594,9 @@
                 totalPages: 1,
                 data: [],
                 originalData: [],
-                currentFilters: {}
+                currentFilters: {},
+                sortColumn: null,
+                sortDirection: 'asc' // 'asc' 或 'desc'
             },
             shipments: {
                 tableBodyId: 'shipmentsTableBody',
@@ -4646,6 +4650,83 @@
             // 重新渲染表格以应用搜索结果
             renderTable(tableName);
         }
+
+        // 表格排序函数
+        function sortTable(tableName, columnIndex) {
+            const config = tableConfigs[tableName];
+            
+            // 切换排序方向
+            if (config.sortColumn === columnIndex) {
+                config.sortDirection = config.sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                config.sortColumn = columnIndex;
+                config.sortDirection = 'asc';
+            }
+            
+            // 执行排序
+            config.data.sort((a, b) => {
+                const aValue = a.cells[columnIndex];
+                const bValue = b.cells[columnIndex];
+                
+                // 检查是否是日期列（收发日期列索引为1）
+                if (tableName === 'deliveries' && columnIndex === 1) {
+                    // 日期比较
+                    const aDate = new Date(aValue);
+                    const bDate = new Date(bValue);
+                    if (isNaN(aDate.getTime()) || isNaN(bDate.getTime())) {
+                        // 如果日期无效，按字符串比较
+                        const aStr = aValue.toString().toLowerCase();
+                        const bStr = bValue.toString().toLowerCase();
+                        return config.sortDirection === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
+                    }
+                    return config.sortDirection === 'asc' ? aDate - bDate : bDate - aDate;
+                }
+                
+                // 尝试将值转换为数字进行比较
+                const aNum = parseFloat(aValue);
+                const bNum = parseFloat(bValue);
+                
+                if (!isNaN(aNum) && !isNaN(bNum)) {
+                    // 数字比较
+                    return config.sortDirection === 'asc' ? aNum - bNum : bNum - aNum;
+                } else {
+                    // 字符串比较
+                    const aStr = aValue.toString().toLowerCase();
+                    const bStr = bValue.toString().toLowerCase();
+                    
+                    if (aStr < bStr) return config.sortDirection === 'asc' ? -1 : 1;
+                    if (aStr > bStr) return config.sortDirection === 'asc' ? 1 : -1;
+                    return 0;
+                }
+            });
+            
+            // 重置到第1页
+            config.currentPage = 1;
+            
+            // 更新表头排序状态显示
+            if (tableName === 'deliveries') {
+                const table = document.getElementById('deliveriesTable');
+                const headers = table.querySelectorAll('thead th');
+                
+                // 清除所有表头的排序图标
+                headers.forEach((header, index) => {
+                    if (index >= 1 && index <= 11) { // 只处理第2到12列
+                        // 先保存原始文本内容
+                        const textContent = header.textContent.trim();
+                        // 重置innerHTML为原始文本
+                        header.innerHTML = textContent;
+                    }
+                });
+                
+                // 添加当前排序列的图标
+                const currentHeader = headers[columnIndex + 1]; // 加上复选框列的偏移
+                const icon = config.sortDirection === 'asc' ? '<i class="fa fa-sort-asc ml-1"></i>' : '<i class="fa fa-sort-desc ml-1"></i>';
+                currentHeader.innerHTML += icon;
+            }
+            
+            // 重新渲染表格
+            renderTable(tableName);
+        }
         
         // 修改initializeTable函数
         function initializeTable(tableName) {
@@ -4659,6 +4740,24 @@
             
             // 添加搜索事件监听器
             addSearchEventListeners(tableName);
+            
+            // 为收发货表格添加表头排序事件监听器
+            if (tableName === 'deliveries') {
+                const table = document.getElementById('deliveriesTable');
+                const headers = table.querySelectorAll('thead th');
+                
+                // 为第2到12列（索引1到11）的表头添加点击事件监听器
+                for (let i = 1; i <= 11; i++) {
+                    headers[i].addEventListener('click', () => {
+                        // 计算对应的cells数组索引（减去复选框列和类型列的偏移）
+                        const columnIndex = i - 1;
+                        sortTable('deliveries', columnIndex);
+                    });
+                    
+                    // 添加鼠标悬停效果，提示可点击排序
+                    headers[i].style.cursor = 'pointer';
+                }
+            }
             
             // 渲染初始表格
             renderTable(tableName);
