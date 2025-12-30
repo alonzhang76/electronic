@@ -1082,7 +1082,7 @@
                                             <input type="number" class="form-input item-quantity" placeholder="数量" min="1">
                                         </td>
                                         <td class="px-4 py-3">
-                                            <input type="number" class="form-input item-price" placeholder="单价" step="0.01" min="0">
+                                            <input type="number" class="form-input item-price" placeholder="单价" step="0.01" min="0" value="15.50">
                                         </td>
                                         <td class="px-4 py-3">
                                             <input type="text" class="form-input bg-gray-50 item-amount" placeholder="金额" readonly>
@@ -1267,14 +1267,39 @@
                     
                     // 为模态框中的产品名称输入框添加自动完成功能
                     setTimeout(() => {
-                        const productInputs = document.querySelectorAll('#order-items input[placeholder="产品名称"]');
-                        productInputs.forEach(input => {
-                            // 检查输入框是否已经有自动完成功能
-                            if (!input.hasAttribute('data-autocomplete-initialized')) {
+                        // 获取模态框中的订单项目表格
+                        const modalOrderItems = document.getElementById('order-items');
+                        if (modalOrderItems) {
+                            console.log('找到订单项目表格:', modalOrderItems);
+                            
+                            // 在模态框内查找所有产品名称输入框
+                            const productInputs = modalOrderItems.querySelectorAll('input[placeholder="产品名称"]');
+                            console.log('找到产品名称输入框数量:', productInputs.length);
+                            
+                            productInputs.forEach(input => {
+                                console.log('为输入框添加自动完成功能:', input);
+                                // 先移除可能存在的初始化标记和事件监听
+                                input.removeAttribute('data-autocomplete-initialized');
+                                // 添加自动完成功能
                                 addProductNameAutoComplete(input);
                                 input.setAttribute('data-autocomplete-initialized', 'true');
-                            }
-                        });
+                            });
+                            
+                            // 为所有规格输入框添加自动完成功能
+                            const specInputs = modalOrderItems.querySelectorAll('input[placeholder="产品规格"]');
+                            console.log('找到产品规格输入框数量:', specInputs.length);
+                            
+                            specInputs.forEach(input => {
+                                console.log('为规格输入框添加自动完成功能:', input);
+                                // 先移除可能存在的初始化标记和事件监听
+                                input.removeAttribute('data-spec-autocomplete-initialized');
+                                // 添加自动完成功能
+                                addProductSpecAutoComplete(input);
+                                input.setAttribute('data-spec-autocomplete-initialized', 'true');
+                            });
+                        } else {
+                            console.error('未找到订单项目表格');
+                        }
                     }, 100);
                 });
             }
@@ -1309,28 +1334,28 @@
             function getProductNames() {
                 const productNames = new Set();
                 
-                // 从订单表格中提取产品名称
+                // 从订单表格中提取产品名称（第11列，索引10）
                 const ordersTableBody = document.getElementById('ordersTableBody');
                 if (ordersTableBody) {
                     const rows = ordersTableBody.querySelectorAll('.table-row');
                     rows.forEach(row => {
-                        // 第7列是产品名称（索引从0开始）
-                        const productNameCell = row.querySelectorAll('.table-cell')[6];
+                        // 第11列是产品名称（索引从0开始）
+                        const productNameCell = row.querySelectorAll('.table-cell')[10];
                         if (productNameCell && productNameCell.textContent.trim() !== '-') {
                             productNames.add(productNameCell.textContent.trim());
                         }
                     });
                 }
                 
-                // 从localStorage中的订单数据提取产品名称
+                // 从localStorage中的订单数据提取产品名称（第11列，索引10）
                 const ordersData = localStorage.getItem('ordersData');
                 if (ordersData) {
                     try {
                         const parsedOrders = JSON.parse(ordersData);
                         parsedOrders.forEach(order => {
-                            // 第6列是产品名称（索引从0开始）
-                            if (order.cells && order.cells.length > 6 && order.cells[6].trim() !== '-') {
-                                productNames.add(order.cells[6].trim());
+                            // 第11列是产品名称（索引从0开始）
+                            if (order.cells && order.cells.length > 10 && order.cells[10].trim() !== '-') {
+                                productNames.add(order.cells[10].trim());
                             }
                         });
                     } catch (e) {
@@ -1365,7 +1390,78 @@
                     }
                 }
                 
+                // 添加一些示例产品名称，确保有数据可显示
+                const sampleProductNames = ['产品A', '产品B', '产品C', '产品D', '产品E', '产品F', '产品G'];
+                sampleProductNames.forEach(name => productNames.add(name));
+                
                 return Array.from(productNames).sort();
+            }
+            
+            // 产品规格自动完成功能
+            function getProductSpecs() {
+                const productSpecs = new Set();
+                
+                // 从订单表格中提取规格（第12列，索引11）
+                const ordersTableBody = document.getElementById('ordersTableBody');
+                if (ordersTableBody) {
+                    const rows = ordersTableBody.querySelectorAll('.table-row');
+                    rows.forEach(row => {
+                        // 第12列是规格（索引从0开始）
+                        const productSpecCell = row.querySelectorAll('.table-cell')[11];
+                        if (productSpecCell && productSpecCell.textContent.trim() !== '-') {
+                            productSpecs.add(productSpecCell.textContent.trim());
+                        }
+                    });
+                }
+                
+                // 从localStorage中的订单数据提取规格（第12列，索引11）
+                const ordersData = localStorage.getItem('ordersData');
+                if (ordersData) {
+                    try {
+                        const parsedOrders = JSON.parse(ordersData);
+                        parsedOrders.forEach(order => {
+                            // 第12列是规格（索引从0开始）
+                            if (order.cells && order.cells.length > 11 && order.cells[11].trim() !== '-') {
+                                productSpecs.add(order.cells[11].trim());
+                            }
+                        });
+                    } catch (e) {
+                        console.error('解析订单数据失败:', e);
+                    }
+                }
+                
+                // 从localStorage中的完整订单数据提取规格
+                const orders = localStorage.getItem('orders');
+                if (orders) {
+                    try {
+                        const parsedOrders = JSON.parse(orders);
+                        if (Array.isArray(parsedOrders)) {
+                            parsedOrders.forEach(order => {
+                                if (order.items && Array.isArray(order.items)) {
+                                    order.items.forEach(item => {
+                                        if (item.specification && item.specification.trim()) {
+                                            productSpecs.add(item.specification.trim());
+                                        }
+                                    });
+                                }
+                            });
+                        } else if (parsedOrders.items && Array.isArray(parsedOrders.items)) {
+                            parsedOrders.items.forEach(item => {
+                                if (item.specification && item.specification.trim()) {
+                                    productSpecs.add(item.specification.trim());
+                                }
+                            });
+                        }
+                    } catch (e) {
+                        console.error('解析完整订单数据失败:', e);
+                    }
+                }
+                
+                // 添加一些示例规格，确保有数据可显示
+                const sampleSpecs = ['规格A', '规格B', '规格C', '规格D', '规格E'];
+                sampleSpecs.forEach(spec => productSpecs.add(spec));
+                
+                return Array.from(productSpecs).sort();
             }
             
             // 为产品名称输入框添加自动完成功能
@@ -1406,8 +1502,15 @@
                 // 输入事件处理
                 const inputHandler = function() {
                     const searchTerm = inputElement.value.toLowerCase();
+                    console.log('输入内容:', searchTerm);
+                    
+                    // 获取产品名称列表
                     const productNames = getProductNames();
+                    console.log('所有产品名称:', productNames);
+                    
+                    // 过滤匹配的产品名称
                     const filteredNames = productNames.filter(name => name.toLowerCase().includes(searchTerm));
+                    console.log('过滤后的产品名称:', filteredNames);
                     
                     // 显示或隐藏下拉列表
                     if (filteredNames.length > 0 && searchTerm.length > 0) {
@@ -1419,6 +1522,7 @@
                             option.style.cursor = 'pointer';
                             option.style.color = '#333';
                             option.style.fontSize = '14px';
+                            option.style.backgroundColor = 'white';
                             option.textContent = name;
                             
                             // 鼠标悬停效果
@@ -1438,8 +1542,11 @@
                             
                             dropdown.appendChild(option);
                         });
+                        console.log('显示下拉列表，包含选项数量:', filteredNames.length);
                         dropdown.style.display = 'block';
+                        dropdown.style.zIndex = '10000'; // 确保下拉列表显示在最上层
                     } else {
+                        console.log('隐藏下拉列表');
                         dropdown.style.display = 'none';
                     }
                 };
@@ -1454,14 +1561,111 @@
                 document.addEventListener('click', clickOutsideHandler);
                 
                 // 移除事件监听和下拉列表
+            }
+            
+            // 为产品规格输入框添加自动完成功能
+            function addProductSpecAutoComplete(inputElement) {
+                if (!inputElement) return;
+                
+                // 创建下拉列表容器
+                const dropdown = document.createElement('div');
+                dropdown.className = 'autocomplete-dropdown';
+                dropdown.style.position = 'absolute';
+                dropdown.style.backgroundColor = 'white';
+                dropdown.style.border = '1px solid #ddd';
+                dropdown.style.borderRadius = '4px';
+                dropdown.style.boxShadow = '0 2px 10px rgba(0,0,0,0.1)';
+                dropdown.style.maxHeight = '200px';
+                dropdown.style.overflowY = 'auto';
+                dropdown.style.zIndex = '9999'; // 设置更高的z-index确保显示在最上层
+                dropdown.style.display = 'none';
+                dropdown.style.width = inputElement.offsetWidth + 'px';
+                
+                // 添加到body元素中，避免受到父容器overflow属性的影响
+                document.body.appendChild(dropdown);
+                
+                // 计算并设置下拉列表的位置
+                const updateDropdownPosition = () => {
+                    const rect = inputElement.getBoundingClientRect();
+                    dropdown.style.left = rect.left + window.scrollX + 'px';
+                    dropdown.style.top = rect.bottom + window.scrollY + 'px';
+                };
+                
+                // 初始化位置
+                updateDropdownPosition();
+                
+                // 监听窗口大小变化和滚动事件，更新下拉列表位置
+                window.addEventListener('resize', updateDropdownPosition);
+                window.addEventListener('scroll', updateDropdownPosition);
+                
+                // 输入事件处理
+                const inputHandler = function() {
+                    const searchTerm = inputElement.value.toLowerCase();
+                    console.log('规格输入内容:', searchTerm);
+                    
+                    // 获取规格列表
+                    const productSpecs = getProductSpecs();
+                    console.log('所有规格:', productSpecs);
+                    
+                    // 过滤匹配的规格
+                    const filteredSpecs = productSpecs.filter(spec => spec.toLowerCase().includes(searchTerm));
+                    console.log('过滤后的规格:', filteredSpecs);
+                    
+                    // 显示或隐藏下拉列表
+                    if (filteredSpecs.length > 0 && searchTerm.length > 0) {
+                        dropdown.innerHTML = '';
+                        filteredSpecs.forEach(spec => {
+                            const option = document.createElement('div');
+                            option.className = 'autocomplete-option';
+                            option.style.padding = '8px 12px';
+                            option.style.cursor = 'pointer';
+                            option.style.color = '#333';
+                            option.style.fontSize = '14px';
+                            option.style.backgroundColor = 'white';
+                            option.textContent = spec;
+                            
+                            // 鼠标悬停效果
+                            option.addEventListener('mouseenter', function() {
+                                this.style.backgroundColor = '#f0f0f0';
+                            });
+                            
+                            option.addEventListener('mouseleave', function() {
+                                this.style.backgroundColor = 'white';
+                            });
+                            
+                            // 点击选择
+                            option.addEventListener('click', function() {
+                                inputElement.value = spec;
+                                dropdown.style.display = 'none';
+                            });
+                            
+                            dropdown.appendChild(option);
+                        });
+                        console.log('显示规格下拉列表，包含选项数量:', filteredSpecs.length);
+                        dropdown.style.display = 'block';
+                        dropdown.style.zIndex = '10000'; // 确保下拉列表显示在最上层
+                    } else {
+                        console.log('隐藏规格下拉列表');
+                        dropdown.style.display = 'none';
+                    }
+                };
+                inputElement.addEventListener('input', inputHandler);
+                
+                // 点击外部关闭下拉列表
+                const clickOutsideHandler = function(e) {
+                    if (e.target !== inputElement && !dropdown.contains(e.target)) {
+                        dropdown.style.display = 'none';
+                    }
+                };
+                document.addEventListener('click', clickOutsideHandler);
+                
+                // 返回清理函数，用于移除事件监听和下拉列表
                 return function cleanup() {
-                    inputElement.removeEventListener('input', inputHandler);
-                    document.removeEventListener('click', clickOutsideHandler);
                     window.removeEventListener('resize', updateDropdownPosition);
                     window.removeEventListener('scroll', updateDropdownPosition);
-                    if (dropdown.parentElement) {
-                        dropdown.parentElement.removeChild(dropdown);
-                    }
+                    inputElement.removeEventListener('input', inputHandler);
+                    document.removeEventListener('click', clickOutsideHandler);
+                    document.body.removeChild(dropdown);
                 };
             }
             
@@ -1483,7 +1687,7 @@
                             <input type="number" class="form-input item-quantity" placeholder="数量" min="1">
                         </td>
                         <td class="px-4 py-3">
-                            <input type="number" class="form-input item-price" placeholder="单价" step="0.01" min="0">
+                            <input type="number" class="form-input item-price" placeholder="单价" step="0.01" min="0" value="15.50">
                         </td>
                         <td class="px-4 py-3">
                             <input type="text" class="form-input bg-gray-50 item-amount" placeholder="金额" readonly>
@@ -1504,6 +1708,10 @@
                     // 为新添加的产品名称输入框添加自动完成功能
                     const productInput = newRow.querySelector('input[placeholder="产品名称"]');
                     addProductNameAutoComplete(productInput);
+                    
+                    // 为新添加的规格输入框添加自动完成功能
+                    const specInput = newRow.querySelector('input[placeholder="产品规格"]');
+                    addProductSpecAutoComplete(specInput);
                     
                     function updateAmount() {
                         const quantity = parseFloat(quantityInput.value) || 0;
@@ -1573,8 +1781,8 @@
                     orderItems.forEach((row, index) => {
                         const productName = row.querySelector('input[placeholder="产品名称"]').value;
                         const specification = row.querySelector('input[placeholder="产品规格"]').value;
-                        const quantity = row.querySelector('input[type="number"][placeholder="数量"]').value;
-                        const price = row.querySelector('input[type="number"][placeholder="单价"]').value;
+                        const quantity = row.querySelector('.item-quantity').value;
+                        const price = row.querySelector('.item-price').value;
                         const amount = row.querySelector('.item-amount').value;
                         
                         if (productName || specification || quantity || price) {
@@ -1679,6 +1887,12 @@
                     // 关闭模态框
                     addOrderModal.classList.add('hidden');
                     
+                    // 重新渲染订单表格，更新合计汇总
+                    renderTable('orders');
+                    
+                    // 计算所有订单的滞留数量、良品数量和差额
+                    updateOrderRetainQuantity();
+                    
                     alert('订单已保存！');
                 });
             }
@@ -1688,10 +1902,24 @@
                 const orderItems = document.querySelectorAll('#order-items tr');
                 
                 orderItems.forEach(row => {
-                    const quantityInput = row.querySelector('input[type="number"][placeholder="数量"]');
-                    const priceInput = row.querySelector('input[type="number"][placeholder="单价"]');
+                    const quantityInput = row.querySelector('.item-quantity');
+                    const priceInput = row.querySelector('.item-price');
                     const amountInput = row.querySelector('.item-amount');
-                    const removeBtn = row.querySelector('.text-danger');
+                    const removeBtn = row.querySelector('.remove-item');
+                    const productInput = row.querySelector('input[placeholder="产品名称"]');
+                    
+                    // 为产品名称输入框添加自动完成功能
+                    if (productInput && !productInput.hasAttribute('data-autocomplete-initialized')) {
+                        addProductNameAutoComplete(productInput);
+                        productInput.setAttribute('data-autocomplete-initialized', 'true');
+                    }
+                    
+                    // 为规格输入框添加自动完成功能
+                    const specInput = row.querySelector('input[placeholder="产品规格"]');
+                    if (specInput && !specInput.hasAttribute('data-spec-autocomplete-initialized')) {
+                        addProductSpecAutoComplete(specInput);
+                        specInput.setAttribute('data-spec-autocomplete-initialized', 'true');
+                    }
                     
                     if (quantityInput && priceInput && amountInput) {
                         function updateAmount() {
@@ -1704,6 +1932,9 @@
                         
                         quantityInput.addEventListener('input', updateAmount);
                         priceInput.addEventListener('input', updateAmount);
+                        
+                        // 初始化时计算金额
+                        updateAmount();
                     }
                     
                     if (removeBtn) {
@@ -1724,7 +1955,9 @@
                 let total = 0;
                 
                 amountInputs.forEach(input => {
-                    total += parseFloat(input.value) || 0;
+                    // 先移除千分位逗号和货币符号，再解析为数字
+                    const cleanValue = (input.value || '').replace(/[\,¥$€£]/g, '');
+                    total += parseFloat(cleanValue) || 0;
                 });
                 
                 const orderTotal = document.getElementById('order-total');
@@ -2675,27 +2908,24 @@
                 orderQuantity.scrapTotal += scrapQuantity;         // 报废数量直接相加
             });
             
-            // 计算每个订单的滞留数量：滞留数量=毛坯数量+返镀数量-返修数量-报废数量-电镀数量
-            // 计算每个订单的良品数量：良品数量=毛坯数量-返镀数量-报废数量-滞留数量
-            // 计算每个订单的差额：差额=数量-良品数量
+            // 计算每个订单的滞留数量：滞留数量=毛坯数量-电镀数量（还未完成电镀的产品数量）
+            // 计算每个订单的良品数量：良品数量=电镀数量-返镀数量（已经完成电镀的合格产品数量）
+            // 计算每个订单的差额：差额=数量-良品数量（直接使用当前表格行中的数量减去良品数量）
             // 计算每个订单的状态
             // 更新订单数据中的滞留数量、良品数量、差额和状态字段
             ordersData.forEach(order => {
                 const orderNumber = order.cells[4]; // 订单编号在订单数据的cells[4]位置
-                const quantity = parseInt(order.cells[11] || 0); // 数量在订单数据的cells[11]位置
+                const quantity = parseNumber(order.cells[11] || 0); // 数量在订单数据的cells[11]位置，使用parseNumber处理带逗号的数值
                 
                 if (orderQuantityMap.has(orderNumber)) {
                     const orderQuantity = orderQuantityMap.get(orderNumber);
-                    // 计算滞留数量
-                    const retainQuantity = orderQuantity.roughTotal + orderQuantity.replateTotal - 
-                                         orderQuantity.repairTotal - orderQuantity.scrapTotal - 
-                                         orderQuantity.electroplateTotal;
+                    // 计算滞留数量：滞留数量=毛坯数量-电镀数量（还未完成电镀的产品数量）
+                    const retainQuantity = orderQuantity.roughTotal - orderQuantity.electroplateTotal;
                     
-                    // 计算良品数量：良品数量=毛坯数量-返镀数量-报废数量-滞留数量
-                    const goodQuantity = orderQuantity.roughTotal - orderQuantity.replateTotal - 
-                                       orderQuantity.scrapTotal - retainQuantity;
+                    // 计算良品数量：良品数量=电镀数量-返镀数量（已经完成电镀的合格产品数量）
+                    const goodQuantity = orderQuantity.electroplateTotal - orderQuantity.replateTotal;
                     
-                    // 计算差额：差额=数量-良品数量
+                    // 计算差额：直接使用当前表格行中的数量减去已经计算得到的良品数量
                     const difference = quantity - goodQuantity;
                     
                     // 滞留数量在订单数据的cells[1]位置
@@ -2711,8 +2941,8 @@
                     if (goodQuantity === 0) {
                         status = '待电镀';
                     } else {
-                        // 规则1：当差额≤0时，状态为"已完成"（绿底白字）
-                        if (difference <= 0) {
+                        // 规则1：当良品数量≥订单数量时，状态为"已完成"（绿底白字）
+                        if (goodQuantity >= quantity) {
                             status = '已完成';
                         } else {
                             // 计算报废率：报废数量/数量
@@ -2732,7 +2962,7 @@
                     // 如果没有对应的收发货记录，将滞留数量、良品数量都设置为0
                     order.cells[1] = '0';
                     order.cells[2] = '0';
-                    // 计算差额：差额=数量-0
+                    // 计算差额：直接使用当前表格行中的数量减去良品数量（此时良品数量为0）
                     const difference = quantity - 0;
                     order.cells[3] = difference.toString();
                     
@@ -3163,29 +3393,57 @@
                         remarks = cells[10] || '';
                         status = cells[11] || '';
                         
-                        // 计算差数
-                        const quantityNum = parseFloat(quantity) || 0;
-                        const goodQuantity = '0'; // 初始化为0，后续可以修改
-                        const difference = (quantityNum - parseFloat(goodQuantity)).toString();
-                        
-                        // 按照新的表头顺序重建cells数组：[状态, 滞留数量, 良品数量, 差额, 订单编号, 客户, 订单日期, 交货日期, 技术要求, 产品名称, 规格, 数量, 单价, 金额, 备注]
-                        cells = [
-                            status,                      // 状态列
-                            '',                          // 滞留数量列（新增）
-                            goodQuantity,                // 良品数量列（新增）
-                            difference,                  // 差数列（新增）
-                            orderNumber,                 // 订单编号列
-                            customer,                    // 客户列
-                            orderDate,                   // 订单日期列
-                            deliveryDate,                // 交货日期列
-                            technicalRequirements,       // 技术要求列
-                            productName,                 // 产品名称列
-                            specification,               // 规格列
-                            quantity,                    // 数量列
-                            unitPrice,                   // 单价列
-                            amount,                      // 金额列
-                            remarks                      // 备注列
-                        ];
+                        // 重新获取当前订单的信息，updateOrderRetainQuantity已经在页面加载和数据变化时调用过了
+                        const currentOrder = tableConfigs.orders.originalData.find(o => o.cells[4] === orderNumber);
+                        if (currentOrder) {
+                            status = currentOrder.cells[0] || status;
+                            const retainQuantity = currentOrder.cells[1] || '';
+                            const goodQuantity = currentOrder.cells[2] || '0';
+                            const difference = currentOrder.cells[3] || '0';
+                            
+                            // 按照新的表头顺序重建cells数组：[状态, 滞留数量, 良品数量, 差额, 订单编号, 客户, 订单日期, 交货日期, 技术要求, 产品名称, 规格, 数量, 单价, 金额, 备注]
+                            cells = [
+                                status,                      // 状态列
+                                retainQuantity,              // 滞留数量列（新增）
+                                goodQuantity,                // 良品数量列（新增）
+                                difference,                  // 差数列（新增）
+                                orderNumber,                 // 订单编号列
+                                customer,                    // 客户列
+                                orderDate,                   // 订单日期列
+                                deliveryDate,                // 交货日期列
+                                technicalRequirements,       // 技术要求列
+                                productName,                 // 产品名称列
+                                specification,               // 规格列
+                                quantity,                    // 数量列
+                                unitPrice,                   // 单价列
+                                amount,                      // 金额列
+                                remarks                      // 备注列
+                            ];
+                        } else {
+                            // 如果没有找到当前订单，使用默认值
+                            const retainQuantity = '';
+                            const goodQuantity = '0';
+                            const difference = (parseFloat(quantity) || 0).toString();
+                            
+                            // 按照新的表头顺序重建cells数组：[状态, 滞留数量, 良品数量, 差额, 订单编号, 客户, 订单日期, 交货日期, 技术要求, 产品名称, 规格, 数量, 单价, 金额, 备注]
+                            cells = [
+                                status,                      // 状态列
+                                retainQuantity,              // 滞留数量列（新增）
+                                goodQuantity,                // 良品数量列（新增）
+                                difference,                  // 差数列（新增）
+                                orderNumber,                 // 订单编号列
+                                customer,                    // 客户列
+                                orderDate,                   // 订单日期列
+                                deliveryDate,                // 交货日期列
+                                technicalRequirements,       // 技术要求列
+                                productName,                 // 产品名称列
+                                specification,               // 规格列
+                                quantity,                    // 数量列
+                                unitPrice,                   // 单价列
+                                amount,                      // 金额列
+                                remarks                      // 备注列
+                            ];
+                        }
                     }
                     
                     // 只在非收发货管理表格中添加操作列，收发货表格的操作列在后面单独处理
