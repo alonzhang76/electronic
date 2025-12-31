@@ -5137,10 +5137,10 @@
                 rows.forEach(row => {
                     const cells = row.querySelectorAll('td');
                     if (cells.length >= 11) {
-                        // 根据新的表头顺序，订单编号在第6列（索引5），客户在第7列（索引6），产品名称在第11列（索引10）
+                        // 根据新的表头顺序，订单编号在第6列（索引5），客户在第7列（索引6），产品名称在第9列（索引8）
                         const orderNumber = cells[5].textContent.trim();
                         const customer = cells[6].textContent.trim();
-                        const productName = cells[10].textContent.trim();
+                        const productName = cells[8].textContent.trim();
                         
                         const option = document.createElement('option');
                         option.value = orderNumber;
