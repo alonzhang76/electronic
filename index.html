@@ -324,7 +324,7 @@
                                 <table class="min-w-full divide-y divide-gray-200" id="ordersTable">
                                     <thead class="bg-gray-50">
                                         <tr>
-                                            <th scope="col" class="table-header">
+                                            <th scope="col" class="table-header w-12">
                                                 <input type="checkbox" id="orders-select-all" class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary">
                                             </th>
                                             <th scope="col" class="table-header">状态</th>
@@ -334,13 +334,13 @@
                                             <th scope="col" class="table-header">订单编号</th>
                                             <th scope="col" class="table-header">客户</th>
                                             <th scope="col" class="table-header">订单日期</th>
-                                            <th scope="col" class="table-header">交货日期</th>
-                                            <th scope="col" class="table-header">电位差等电镀技术要求</th>
                                             <th scope="col" class="table-header">产品名称</th>
                                             <th scope="col" class="table-header">规格</th>
                                             <th scope="col" class="table-header">数量</th>
                                             <th scope="col" class="table-header">单价</th>
                                             <th scope="col" class="table-header">金额</th>
+                                            <th scope="col" class="table-header">交货日期</th>
+                                            <th scope="col" class="table-header">技术要求</th>
                                             <th scope="col" class="table-header">备注</th>
                                             <th scope="col" class="table-header">操作</th>
                                         </tr>
@@ -3362,13 +3362,13 @@
                             orderNumber,                 // 订单编号列
                             customer,                    // 客户列
                             orderDate,                   // 订单日期列
-                            deliveryDate,                // 交货日期列
-                            technicalRequirements,       // 技术要求列
                             productName,                 // 产品名称列
                             specification,               // 规格列
                             quantity,                    // 数量列
                             unitPrice,                   // 单价列
                             amount,                      // 金额列
+                            deliveryDate,                // 交货日期列
+                            technicalRequirements,       // 技术要求列
                             remarks                      // 备注列
                         ];
                     } else {
@@ -3401,22 +3401,22 @@
                             const goodQuantity = currentOrder.cells[2] || '0';
                             const difference = currentOrder.cells[3] || '0';
                             
-                            // 按照新的表头顺序重建cells数组：[状态, 滞留数量, 良品数量, 差额, 订单编号, 客户, 订单日期, 交货日期, 技术要求, 产品名称, 规格, 数量, 单价, 金额, 备注]
+                            // 按照新的表头顺序重建cells数组：[状态, 滞留数量, 良品数量, 差额, 订单编号, 客户, 订单日期, 产品名称, 规格, 数量, 单价, 金额, 交货日期, 技术要求, 备注]
                             cells = [
                                 status,                      // 状态列
-                                retainQuantity,              // 滞留数量列（新增）
-                                goodQuantity,                // 良品数量列（新增）
-                                difference,                  // 差数列（新增）
+                                retainQuantity,              // 滞留数量列
+                                goodQuantity,                // 良品数量列
+                                difference,                  // 差数列
                                 orderNumber,                 // 订单编号列
                                 customer,                    // 客户列
                                 orderDate,                   // 订单日期列
-                                deliveryDate,                // 交货日期列
-                                technicalRequirements,       // 技术要求列
                                 productName,                 // 产品名称列
                                 specification,               // 规格列
                                 quantity,                    // 数量列
                                 unitPrice,                   // 单价列
                                 amount,                      // 金额列
+                                deliveryDate,                // 交货日期列
+                                technicalRequirements,       // 技术要求列
                                 remarks                      // 备注列
                             ];
                         } else {
@@ -3425,22 +3425,22 @@
                             const goodQuantity = '0';
                             const difference = (parseFloat(quantity) || 0).toString();
                             
-                            // 按照新的表头顺序重建cells数组：[状态, 滞留数量, 良品数量, 差额, 订单编号, 客户, 订单日期, 交货日期, 技术要求, 产品名称, 规格, 数量, 单价, 金额, 备注]
+                            // 按照新的表头顺序重建cells数组：[状态, 滞留数量, 良品数量, 差额, 订单编号, 客户, 订单日期, 产品名称, 规格, 数量, 单价, 金额, 交货日期, 技术要求, 备注]
                             cells = [
                                 status,                      // 状态列
-                                retainQuantity,              // 滞留数量列（新增）
-                                goodQuantity,                // 良品数量列（新增）
-                                difference,                  // 差数列（新增）
+                                retainQuantity,              // 滞留数量列
+                                goodQuantity,                // 良品数量列
+                                difference,                  // 差数列
                                 orderNumber,                 // 订单编号列
                                 customer,                    // 客户列
                                 orderDate,                   // 订单日期列
-                                deliveryDate,                // 交货日期列
-                                technicalRequirements,       // 技术要求列
                                 productName,                 // 产品名称列
                                 specification,               // 规格列
                                 quantity,                    // 数量列
                                 unitPrice,                   // 单价列
                                 amount,                      // 金额列
+                                deliveryDate,                // 交货日期列
+                                technicalRequirements,       // 技术要求列
                                 remarks                      // 备注列
                             ];
                         }
@@ -4211,13 +4211,13 @@
                     '<td class="table-cell"></td>', // 订单编号列
                     '<td class="table-cell"></td>', // 客户列
                     '<td class="table-cell"></td>', // 订单日期列
-                    '<td class="table-cell"></td>', // 交货日期列
-                    '<td class="table-cell"></td>', // 技术要求列
                     '<td class="table-cell"></td>', // 产品名称列
                     '<td class="table-cell"></td>', // 规格列
-                    `<td class="table-cell">${totals.quantity}</td>`, // 数量列
-                    '<td class="table-cell">-</td>', // 单价列（不需要汇总）
-                    `<td class="table-cell">${totals.amount}</td>`, // 金额列
+                    `<td class="table-cell">${totals.quantity}</td>`, // 数量列（与表头对齐）
+                    '<td class="table-cell">-</td>', // 单价列（不需要汇总，与表头对齐）
+                    `<td class="table-cell">${totals.amount}</td>`, // 金额列（与表头对齐）
+                    '<td class="table-cell"></td>', // 交货日期列
+                    '<td class="table-cell"></td>', // 技术要求列
                     '<td class="table-cell"></td>', // 备注列
                     '<td class="table-cell"></td>' // 操作列
                 ];
@@ -4926,8 +4926,8 @@
                 const aValue = a.cells[columnIndex];
                 const bValue = b.cells[columnIndex];
                 
-                // 检查是否是日期列（收发日期列索引为1）
-                if (tableName === 'deliveries' && columnIndex === 1) {
+                // 检查是否是日期列（收发日期列索引为1，订单日期列索引为2）
+                if ((tableName === 'deliveries' && columnIndex === 1) || (tableName === 'orders' && columnIndex === 2)) {
                     // 日期比较
                     const aDate = new Date(aValue);
                     const bDate = new Date(bValue);
@@ -4962,13 +4962,19 @@
             config.currentPage = 1;
             
             // 更新表头排序状态显示
-            if (tableName === 'deliveries') {
-                const table = document.getElementById('deliveriesTable');
+            if (tableName === 'deliveries' || tableName === 'orders') {
+                const tableId = tableName === 'deliveries' ? 'deliveriesTable' : 'ordersTable';
+                const table = document.getElementById(tableId);
                 const headers = table.querySelectorAll('thead th');
                 
                 // 清除所有表头的排序图标
                 headers.forEach((header, index) => {
-                    if (index >= 1 && index <= 11) { // 只处理第2到12列
+                    if (tableName === 'deliveries' && index >= 1 && index <= 11) { // 只处理第2到12列
+                        // 先保存原始文本内容
+                        const textContent = header.textContent.trim();
+                        // 重置innerHTML为原始文本
+                        header.innerHTML = textContent;
+                    } else if (tableName === 'orders' && index >= 2 && index <= 15) { // 只处理第3到16列（排除状态和操作列）
                         // 先保存原始文本内容
                         const textContent = header.textContent.trim();
                         // 重置innerHTML为原始文本
@@ -4977,7 +4983,11 @@
                 });
                 
                 // 添加当前排序列的图标
-                const currentHeader = headers[columnIndex + 1]; // 加上复选框列的偏移
+                let headerIndex = columnIndex + 1; // 加上复选框列的偏移
+                if (tableName === 'orders') {
+                    headerIndex += 1; // 订单表格还有状态列，需要额外加1
+                }
+                const currentHeader = headers[headerIndex];
                 const icon = config.sortDirection === 'asc' ? '<i class="fa fa-sort-asc ml-1"></i>' : '<i class="fa fa-sort-desc ml-1"></i>';
                 currentHeader.innerHTML += icon;
             }
@@ -5000,20 +5010,35 @@
             addSearchEventListeners(tableName);
             
             // 为收发货表格添加表头排序事件监听器
-            if (tableName === 'deliveries') {
-                const table = document.getElementById('deliveriesTable');
+            if (tableName === 'deliveries' || tableName === 'orders') {
+                const tableId = tableName === 'deliveries' ? 'deliveriesTable' : 'ordersTable';
+                const table = document.getElementById(tableId);
                 const headers = table.querySelectorAll('thead th');
                 
-                // 为第2到12列（索引1到11）的表头添加点击事件监听器
-                for (let i = 1; i <= 11; i++) {
-                    headers[i].addEventListener('click', () => {
-                        // 计算对应的cells数组索引（减去复选框列和类型列的偏移）
-                        const columnIndex = i - 1;
-                        sortTable('deliveries', columnIndex);
-                    });
-                    
-                    // 添加鼠标悬停效果，提示可点击排序
-                    headers[i].style.cursor = 'pointer';
+                if (tableName === 'deliveries') {
+                    // 为第2到12列（索引1到11）的表头添加点击事件监听器
+                    for (let i = 1; i <= 11; i++) {
+                        headers[i].addEventListener('click', () => {
+                            // 计算对应的cells数组索引（减去复选框列的偏移）
+                            const columnIndex = i - 1;
+                            sortTable('deliveries', columnIndex);
+                        });
+                        
+                        // 添加鼠标悬停效果，提示可点击排序
+                        headers[i].style.cursor = 'pointer';
+                    }
+                } else if (tableName === 'orders') {
+                    // 为第3到16列（索引2到15）的表头添加点击事件监听器（排除状态和操作列）
+                    for (let i = 2; i <= 15; i++) {
+                        headers[i].addEventListener('click', () => {
+                            // 计算对应的cells数组索引（减去复选框列和状态列的偏移）
+                            const columnIndex = i - 2;
+                            sortTable('orders', columnIndex);
+                        });
+                        
+                        // 添加鼠标悬停效果，提示可点击排序
+                        headers[i].style.cursor = 'pointer';
+                    }
                 }
             }
             
