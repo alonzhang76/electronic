@@ -25,8 +25,8 @@
         function parseNumber(value) {
             if (typeof value === 'number') return value;
             if (typeof value === 'string') {
-                // 移除货币符号和非数字字符（保留小数点和负号）
-                return parseFloat(value.replace(/[^\d.-]/g, '')) || 0;
+                // 先移除千分位逗号，再移除货币符号和非数字字符（保留小数点和负号）
+                return parseFloat(value.replace(/,/g, '').replace(/[^\d.-]/g, '')) || 0;
             }
             return 0;
         }
@@ -45,6 +45,8 @@
     <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <!-- SheetJS for Excel export -->
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <!-- Tailwind 配置 -->
     <script>
         tailwind.config = {
@@ -160,6 +162,10 @@
                 <div class="flex items-center">
                     <i class="fa fa-industry text-white text-2xl mr-2"></i>
                     <span class="text-white font-bold text-lg">丹阳裕丰业务管理系统</span>
+                </div>
+                <div class="text-white text-right" style="font-family: 'STKaiti', 'KaiTi', serif;">
+                    <div>Designed By AlonZhang</div>
+                    <div>Contact: 136 6511 9291</div>
                 </div>
             </div>
             <nav class="px-4 pb-2 flex overflow-x-auto">
@@ -548,6 +554,16 @@
                                 <div class="w-full md:w-auto">
                                     <button id="deliveries-reset-btn" class="btn-secondary">
                                         <i class="fa fa-refresh mr-2"></i> 重置
+                                    </button>
+                                </div>
+                                <div class="w-full md:w-auto">
+                                    <button id="deliveries-export-btn" class="btn-success flex items-center">
+                                        <i class="fa fa-file-excel-o mr-2"></i> 导出EXCEL
+                                    </button>
+                                </div>
+                                <div class="w-full md:w-auto">
+                                    <button id="deliveries-batch-edit-btn" class="btn-warning flex items-center">
+                                        <i class="fa fa-edit mr-2"></i> 批量修改
                                     </button>
                                 </div>
 
@@ -1731,24 +1747,24 @@
                 });
             }
             
-            // 检查订单编号是否存在的函数
-            function isOrderNumberExists(orderNumber, excludeIndex = -1) {
-                // 获取订单数据
-                const ordersData = JSON.parse(localStorage.getItem('ordersData') || '[]');
+        // 检查订单编号是否存在的函数（移到全局作用域）
+        function isOrderNumberExists(orderNumber, excludeIndex = -1) {
+            // 获取订单数据
+            const ordersData = JSON.parse(localStorage.getItem('ordersData') || '[]');
+            
+            // 检查每个订单的订单编号
+            for (let i = 0; i < ordersData.length; i++) {
+                // 跳过排除的索引（用于编辑场景）
+                if (i === excludeIndex) continue;
                 
-                // 检查每个订单的订单编号
-                for (let i = 0; i < ordersData.length; i++) {
-                    // 跳过排除的索引（用于编辑场景）
-                    if (i === excludeIndex) continue;
-                    
-                    const order = ordersData[i];
-                    const cells = order.cells || [];
-                    if (cells.length > 4 && cells[4] === orderNumber) {
-                        return true; // 找到重复的订单编号
-                    }
+                const order = ordersData[i];
+                const cells = order.cells || [];
+                if (cells.length > 4 && cells[4] === orderNumber) {
+                    return true; // 找到重复的订单编号
                 }
-                return false; // 没有找到重复的订单编号
             }
+            return false; // 没有找到重复的订单编号
+        }
 
             // 订单表单提交
             const orderForm = document.getElementById('order-form');
@@ -1833,13 +1849,13 @@
                         <td class="table-cell">${orderData.orderNumber}</td>
                         <td class="table-cell">${customerName}</td>
                         <td class="table-cell">${orderData.orderDate}</td>
-                        <td class="table-cell">${orderData.dueDate}</td>
-                        <td class="table-cell">${orderData.platingRequirements}</td>
                         <td class="table-cell">${firstItem.productName || '-'}</td>
                         <td class="table-cell">${firstItem.specification || '-'}</td>
                         <td class="table-cell">${firstItem.quantity || '-'}</td>
                         <td class="table-cell">¥${firstItem.price || '0.00'}</td>
                         <td class="table-cell">¥${orderData.totalAmount}</td>
+                        <td class="table-cell">${orderData.dueDate}</td>
+                        <td class="table-cell">${orderData.platingRequirements}</td>
                         <td class="table-cell">${orderData.notes}</td>
                         <td class="table-cell">
                             <button class="text-gray-500 hover:text-gray-700 mr-3">
@@ -2915,7 +2931,7 @@
             // 更新订单数据中的滞留数量、良品数量、差额和状态字段
             ordersData.forEach(order => {
                 const orderNumber = order.cells[4]; // 订单编号在订单数据的cells[4]位置
-                const quantity = parseNumber(order.cells[11] || 0); // 数量在订单数据的cells[11]位置，使用parseNumber处理带逗号的数值
+                const quantity = parseNumber(order.cells[9] || 0); // 数量在订单数据的cells[9]位置，使用parseNumber处理带逗号的数值
                 
                 if (orderQuantityMap.has(orderNumber)) {
                     const orderQuantity = orderQuantityMap.get(orderNumber);
@@ -3336,7 +3352,7 @@
                     
                     // 根据数据长度确定数据结构
                     if (cells.length === 15) {
-                        // 新的数据结构：[状态, 滞留数量, 良品数量, 差额, 订单编号, 客户, 订单日期, 交货日期, 技术要求, 产品名称, 规格, 数量, 单价, 金额, 备注]
+                        // 新的数据结构：[状态, 滞留数量, 良品数量, 差额, 订单编号, 客户, 订单日期, 产品名称, 规格, 数量, 单价, 金额, 交货日期, 技术要求, 备注]
                         status = cells[0] || '';
                         const retainQuantity = cells[1] || '';
                         const goodQuantity = cells[2] || '';
@@ -3344,13 +3360,13 @@
                         orderNumber = cells[4] || '';
                         customer = cells[5] || '';
                         orderDate = cells[6] || '';
-                        deliveryDate = cells[7] || '';
-                        technicalRequirements = cells[8] || '';
-                        productName = cells[9] || '';
-                        specification = cells[10] || '';
-                        quantity = cells[11] || '';
-                        unitPrice = cells[12] || '';
-                        amount = cells[13] || '';
+                        productName = cells[7] || '';
+                        specification = cells[8] || '';
+                        quantity = cells[9] || '';
+                        unitPrice = cells[10] || '';
+                        amount = cells[11] || '';
+                        deliveryDate = cells[12] || '';
+                        technicalRequirements = cells[13] || '';
                         remarks = cells[14] || '';
                         
                         // 保持原有数据结构，只确保顺序正确
@@ -3734,6 +3750,9 @@
                         if (isEditing) {
                             // 保存编辑
                             let rowIndex;
+                            // 获取表格体元素
+                            const tableBody = document.querySelector(tableBodyId);
+                            
                             if (tableName === 'deliveries') {
                                 // 收发货管理表格：强制使用data-row-index属性获取原始索引
                                 rowIndex = parseInt(this.getAttribute('data-row-index'));
@@ -3798,6 +3817,24 @@
                                     }
                                     
                                     // 检查订单编号是否存在（排除当前行）
+                                    function isOrderNumberExists(orderNumber, excludeIndex = -1) {
+                                        // 获取订单数据
+                                        const ordersData = JSON.parse(localStorage.getItem('ordersData') || '[]');
+                                        
+                                        // 检查每个订单的订单编号
+                                        for (let i = 0; i < ordersData.length; i++) {
+                                            // 跳过排除的索引（用于编辑场景）
+                                            if (i === excludeIndex) continue;
+                                            
+                                            const order = ordersData[i];
+                                            const cells = order.cells || [];
+                                            if (cells.length > 4 && cells[4] === orderNumber) {
+                                                return true; // 找到重复的订单编号
+                                            }
+                                        }
+                                        return false; // 没有找到重复的订单编号
+                                    }
+                                    
                                     if (updatedOrderNumber !== originalCells[4] && isOrderNumberExists(updatedOrderNumber, rowIndex)) {
                                         alert('订单编号已存在，请使用不同的订单编号！');
                                         return; // 阻止保存
@@ -3910,6 +3947,7 @@
                             if (icon) {
                                 icon.className = 'fa fa-check';
                             }
+                            // 设置编辑状态
                             row.dataset.editing = 'true';
                         }
                     });
@@ -4233,7 +4271,8 @@
         function calculateTotals(data, tableName = 'orders') {
             // 辅助函数：解析数值，先移除货币符号和其他非数字字符
             function parseNumber(value) {
-                return parseFloat((value || '').replace(/[^\d.]/g, '')) || 0;
+                // 先移除千分位逗号，再保留数字和小数点
+                return parseFloat((value || '').replace(/,/g, '').replace(/[^\d.]/g, '')) || 0;
             }
             
 
@@ -4318,12 +4357,12 @@
                     let retainQuantityIndex, goodQuantityIndex, differenceIndex, quantityIndex, amountIndex;
                     
                     if (row.length === 15) {
-                        // 新的数据结构：[状态, 滞留数量, 良品数量, 差额, 订单编号, 客户, 订单日期, 交货日期, 技术要求, 产品名称, 规格, 数量, 单价, 金额, 备注]
+                        // 新的数据结构：[状态, 滞留数量, 良品数量, 差额, 订单编号, 客户, 订单日期, 产品名称, 规格, 数量, 单价, 金额, 交货日期, 技术要求, 备注]
                         retainQuantityIndex = 1;
                         goodQuantityIndex = 2;
                         differenceIndex = 3;
-                        quantityIndex = 11;
-                        amountIndex = 13;
+                        quantityIndex = 9;
+                        amountIndex = 11;
                     } else if (row.length === 12) {
                         // 原始数据结构：[订单编号, 客户ID, 订单日期, 交货日期, 技术要求, 产品名称, 规格, 数量, 单价, 金额, 备注, 状态]
                         // 原始数据结构可能没有滞留数量、良品数量和差额列
@@ -5119,6 +5158,150 @@
             const deliveryReplate = document.getElementById('delivery-replate');
             const deliveryRepair = document.getElementById('delivery-repair');
             
+            // 批量修改订单编号模态框元素
+            const batchEditDeliveryModal = document.getElementById('batch-edit-delivery-modal');
+            const batchEditDeliveryBtn = document.getElementById('deliveries-batch-edit-btn');
+            const cancelBatchEditDeliveryBtn = document.getElementById('cancel-batch-edit-delivery');
+            const closeBatchEditDeliveryBtn = document.getElementById('close-batch-edit-delivery-modal');
+            const batchEditDeliveryForm = document.getElementById('batch-edit-delivery-form');
+            const oldOrderNumberSelect = document.getElementById('old-order-number');
+            const newOrderNumberInput = document.getElementById('new-order-number');
+            const oldOrderNumberDisplay = document.getElementById('old-order-number-display');
+            const newOrderNumberPreview = document.getElementById('new-order-number-preview');
+            
+            // 填充原订单编号下拉框
+            function populateOldOrderNumbers() {
+                const deliveriesData = tableConfigs.deliveries.originalData;
+                const orderNumbers = new Set();
+                
+                // 收集所有唯一的订单编号
+                deliveriesData.forEach(item => {
+                    if (item.cells && item.cells[2]) {
+                        orderNumbers.add(item.cells[2]);
+                    }
+                });
+                
+                // 清空下拉框
+                oldOrderNumberSelect.innerHTML = '<option value="">请选择原订单编号</option>';
+                
+                // 添加订单编号选项
+                orderNumbers.forEach(orderNumber => {
+                    const option = document.createElement('option');
+                    option.value = orderNumber;
+                    option.textContent = orderNumber;
+                    oldOrderNumberSelect.appendChild(option);
+                });
+            }
+            
+            // 打开批量修改模态框
+            if (batchEditDeliveryBtn) {
+                batchEditDeliveryBtn.addEventListener('click', function() {
+                    // 填充原订单编号下拉框
+                    populateOldOrderNumbers();
+                    
+                    // 重置输入框
+                    oldOrderNumberSelect.value = '';
+                    newOrderNumberInput.value = '';
+                    oldOrderNumberDisplay.textContent = 'xxx';
+                    newOrderNumberPreview.textContent = 'xxx';
+                    
+                    // 显示模态框
+                    batchEditDeliveryModal.classList.remove('hidden');
+                });
+            }
+            
+            // 更新预览显示
+            function updatePreview() {
+                const oldOrderNumber = oldOrderNumberSelect.value;
+                const newOrderNumber = newOrderNumberInput.value;
+                
+                oldOrderNumberDisplay.textContent = oldOrderNumber || 'xxx';
+                newOrderNumberPreview.textContent = newOrderNumber || 'xxx';
+            }
+            
+            // 监听输入变化，更新预览
+            if (oldOrderNumberSelect) {
+                oldOrderNumberSelect.addEventListener('change', updatePreview);
+            }
+            
+            if (newOrderNumberInput) {
+                newOrderNumberInput.addEventListener('input', updatePreview);
+            }
+            
+            // 关闭批量修改模态框
+            function hideBatchEditDeliveryModal() {
+                batchEditDeliveryModal.classList.add('hidden');
+            }
+            
+            if (cancelBatchEditDeliveryBtn) {
+                cancelBatchEditDeliveryBtn.addEventListener('click', hideBatchEditDeliveryModal);
+            }
+            
+            if (closeBatchEditDeliveryBtn) {
+                closeBatchEditDeliveryBtn.addEventListener('click', hideBatchEditDeliveryModal);
+            }
+            
+            if (batchEditDeliveryModal) {
+                batchEditDeliveryModal.addEventListener('click', function(e) {
+                    if (e.target === batchEditDeliveryModal) {
+                        hideBatchEditDeliveryModal();
+                    }
+                });
+            }
+            
+            // 批量修改订单编号提交处理
+            if (batchEditDeliveryForm) {
+                batchEditDeliveryForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    const oldOrderNumber = oldOrderNumberSelect.value;
+                    const newOrderNumber = newOrderNumberInput.value;
+                    
+                    if (!oldOrderNumber) {
+                        alert('请选择原订单编号');
+                        return;
+                    }
+                    
+                    if (!newOrderNumber) {
+                        alert('请输入新订单编号');
+                        return;
+                    }
+                    
+                    // 更新数据
+                    const deliveriesData = tableConfigs.deliveries.originalData;
+                    let updatedCount = 0;
+                    
+                    deliveriesData.forEach(item => {
+                        if (item.cells && item.cells[2] === oldOrderNumber) {
+                            item.cells[2] = newOrderNumber; // 更新订单编号
+                            if (item.orderNumber) {
+                                item.orderNumber = newOrderNumber;
+                            }
+                            updatedCount++;
+                        }
+                    });
+                    
+                    if (updatedCount === 0) {
+                        alert('未找到原订单编号为 "' + oldOrderNumber + '" 的记录');
+                        return;
+                    }
+                    
+                    // 保存到localStorage
+                    localStorage.setItem('deliveriesData', JSON.stringify(deliveriesData));
+                    
+                    // 重新渲染表格
+                    renderTable('deliveries');
+                    
+                    // 更新订单滞留数量
+                    updateOrderRetainQuantity();
+                    
+                    // 关闭模态框
+                    hideBatchEditDeliveryModal();
+                    
+                    alert('批量修改成功！共更新了 ' + updatedCount + ' 条记录');
+                });
+            }
+            
             // 设置收发日期默认为今日
             const today = new Date();
             const formattedDate = today.toISOString().split('T')[0];
@@ -5137,17 +5320,21 @@
                 rows.forEach(row => {
                     const cells = row.querySelectorAll('td');
                     if (cells.length >= 11) {
-                        // 根据新的表头顺序，订单编号在第6列（索引5），客户在第7列（索引6），产品名称在第9列（索引8）
+                        // 根据新的表头顺序，状态在第1列（索引0），订单编号在第6列（索引5），客户在第7列（索引6），产品名称在第9列（索引8）
+                        const status = cells[0].textContent.trim();
                         const orderNumber = cells[5].textContent.trim();
                         const customer = cells[6].textContent.trim();
                         const productName = cells[8].textContent.trim();
                         
-                        const option = document.createElement('option');
-                        option.value = orderNumber;
-                        option.textContent = orderNumber;
-                        option.dataset.productName = productName;
-                        option.dataset.customer = customer;
-                        deliveryOrderId.appendChild(option);
+                        // 过滤掉状态为"已完成"的订单
+                        if (status !== '已完成') {
+                            const option = document.createElement('option');
+                            option.value = orderNumber;
+                            option.textContent = orderNumber;
+                            option.dataset.productName = productName;
+                            option.dataset.customer = customer;
+                            deliveryOrderId.appendChild(option);
+                        }
                     }
                 });
             }
@@ -5481,6 +5668,44 @@
                     </button>
                     <button type="submit" class="btn-primary">
                         保存
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 批量修改订单编号模态框 -->
+    <div id="batch-edit-delivery-modal" class="fixed inset-0 flex items-center justify-center z-50 hidden">
+        <div class="absolute inset-0 bg-gray-600 bg-opacity-50"></div>
+        <div class="relative bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto z-10">
+            <div class="flex justify-between items-center p-6 border-b">
+                <h3 class="text-xl font-bold text-gray-800">批量修改订单编号</h3>
+                <button id="close-batch-edit-delivery-modal" class="text-gray-400 hover:text-gray-600 focus:outline-none">
+                    <i class="fa fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="batch-edit-delivery-form" class="p-6 space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="old-order-number" class="block text-sm font-medium text-gray-700 mb-1">原订单编号</label>
+                        <select id="old-order-number" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" required>
+                            <option value="">请选择原订单编号</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="new-order-number" class="block text-sm font-medium text-gray-700 mb-1">新订单编号</label>
+                        <input type="text" id="new-order-number" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" placeholder="请输入新订单编号" required>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <p class="text-sm text-gray-600 mb-2">将把所有原订单编号为 <span id="old-order-number-display">xxx</span> 的记录替换为新订单编号 <span id="new-order-number-preview">xxx</span></p>
+                </div>
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" id="cancel-batch-edit-delivery" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500">
+                        取消
+                    </button>
+                    <button type="submit" class="btn-primary">
+                        保存修改
                     </button>
                 </div>
             </form>
@@ -5983,6 +6208,17 @@
                 document.body.style.overflow = 'auto';
             }
             
+            // 关闭送货安排模态框
+            function closeShipmentModal() {
+                const shipmentModal = document.getElementById('add-shipment-modal');
+                shipmentModal.classList.add('hidden');
+                shipmentForm.reset();
+                // 恢复模态框标题为新建
+                document.querySelector('#add-shipment-modal h3').textContent = '新建送货安排';
+                // 恢复页面滚动
+                document.body.style.overflow = 'auto';
+            }
+            
             // 点击关闭按钮关闭发票模态框
             if (closeInvoiceModalBtn) {
                 closeInvoiceModalBtn.addEventListener('click', closeInvoiceModal);
@@ -6012,7 +6248,7 @@
                     const orderId = document.getElementById('shipment-order-id').value;
                     const customer = document.getElementById('shipment-customer').value;
                     const route = document.getElementById('shipment-route').value;
-                    const date = shipmentDate.value;
+                    const date = document.getElementById('shipment-date').value;
                     const driver = document.getElementById('shipment-driver').value;
                     const phone = document.getElementById('shipment-phone').value;
                     const license = document.getElementById('shipment-license').value;
@@ -6405,6 +6641,8 @@
             initSelectAllFeature();
             // 初始化送货安排表格和司机下拉框
             updateShipmentsTable();
+            // 初始化导出Excel功能
+            initExportExcelFeature();
         });
         
         // 显示Toast提示
@@ -6443,6 +6681,161 @@
                 toast.classList.remove('show');
             }, 3000);
         }
+        
+        // 初始化导出Excel功能
+        function initExportExcelFeature() {
+            const exportBtn = document.getElementById('deliveries-export-btn');
+            if (exportBtn) {
+                exportBtn.addEventListener('click', function() {
+                    exportDeliveriesToExcel();
+                });
+            }
+        }
+        
+        // 导出收发货管理数据到Excel
+        function exportDeliveriesToExcel() {
+            // 获取表头（不包含复选框和操作列）
+            const headers = [
+                '类型', '收发日期', '订单编号', '客户', '产品名称',
+                '毛坯数量', '电镀数量', '返镀数量', '返修数量', '报废数量', '滞留数量', '良品数量', '差额', '备注'
+            ];
+            
+            // 获取所有勾选的行
+            const selectedRows = document.querySelectorAll('#deliveriesTableBody .table-row input[type="checkbox"]:checked');
+            let rowsToExport = [];
+            
+            // 获取订单数据，用于查找滞留数量、良品数量和差额
+            const ordersData = JSON.parse(localStorage.getItem('ordersData') || '[]');
+            
+            // 初始化合计变量
+            const totals = [0, 0, 0, 0, 0, 0, 0, 0]; // 对应：毛坯数量、电镀数量、返镀数量、返修数量、报废数量、滞留数量、良品数量、差额
+            
+            // 用于存储最后一行要显示的滞留数量、良品数量和差额
+            let finalRetainQuantity = 0;
+            let finalGoodQuantity = 0;
+            let finalDifference = 0;
+            
+            if (selectedRows.length > 0) {
+                // 导出勾选的行
+                selectedRows.forEach((checkbox, index) => {
+                    const row = checkbox.closest('.table-row');
+                    const cells = row.querySelectorAll('.table-cell:not(:first-child):not(:last-child)'); // 排除复选框列和操作列
+                    const rowData = Array.from(cells).map(cell => cell.textContent.trim());
+                    
+                    // 将数量列转换为数字并计算合计
+                    for (let i = 0; i < 5; i++) {
+                        const colIndex = 5 + i; // 数量列从第6列开始（索引5）
+                        const numValue = parseFloat(rowData[colIndex].replace(/,/g, '')) || 0;
+                        rowData[colIndex] = numValue;
+                        totals[i] += numValue;
+                    }
+                    
+                    // 只在最后一行数据中添加滞留数量、良品数量和差额
+                    if (index === selectedRows.length - 1) {
+                        // 根据订单编号从订单数据中获取滞留数量、良品数量和差额
+                        const orderNumber = rowData[2]; // 订单编号在第3列（索引2）
+                        const order = ordersData.find(o => o.cells[4] === orderNumber); // 订单数据中订单编号在cells[4]位置
+                        
+                        if (order) {
+                            finalRetainQuantity = parseFloat(order.cells[1] || 0); // 滞留数量在订单数据的cells[1]位置
+                            finalGoodQuantity = parseFloat(order.cells[2] || 0); // 良品数量在订单数据的cells[2]位置
+                            finalDifference = parseFloat(order.cells[3] || 0); // 差额在订单数据的cells[3]位置
+                        }
+                        
+                        // 添加新列数据
+                        rowData.splice(10, 0, finalRetainQuantity, finalGoodQuantity, finalDifference);
+                    } else {
+                        // 非最后一行，添加空值占位
+                        rowData.splice(10, 0, '', '', '');
+                    }
+                    
+                    rowsToExport.push(rowData);
+                });
+            } else {
+                // 导出所有行
+                const allRows = document.querySelectorAll('#deliveriesTableBody .table-row');
+                allRows.forEach((row, index) => {
+                    const cells = row.querySelectorAll('.table-cell:not(:first-child):not(:last-child)'); // 排除复选框列和操作列
+                    const rowData = Array.from(cells).map(cell => cell.textContent.trim());
+                    
+                    // 将数量列转换为数字并计算合计
+                    for (let i = 0; i < 5; i++) {
+                        const colIndex = 5 + i; // 数量列从第6列开始（索引5）
+                        const numValue = parseFloat(rowData[colIndex].replace(/,/g, '')) || 0;
+                        rowData[colIndex] = numValue;
+                        totals[i] += numValue;
+                    }
+                    
+                    // 只在最后一行数据中添加滞留数量、良品数量和差额
+                    if (index === allRows.length - 1) {
+                        // 根据订单编号从订单数据中获取滞留数量、良品数量和差额
+                        const orderNumber = rowData[2]; // 订单编号在第3列（索引2）
+                        const order = ordersData.find(o => o.cells[4] === orderNumber); // 订单数据中订单编号在cells[4]位置
+                        
+                        if (order) {
+                            finalRetainQuantity = parseFloat(order.cells[1] || 0); // 滞留数量在订单数据的cells[1]位置
+                            finalGoodQuantity = parseFloat(order.cells[2] || 0); // 良品数量在订单数据的cells[2]位置
+                            finalDifference = parseFloat(order.cells[3] || 0); // 差额在订单数据的cells[3]位置
+                        }
+                        
+                        // 添加新列数据
+                        rowData.splice(10, 0, finalRetainQuantity, finalGoodQuantity, finalDifference);
+                    } else {
+                        // 非最后一行，添加空值占位
+                        rowData.splice(10, 0, '', '', '');
+                    }
+                    
+                    rowsToExport.push(rowData);
+                });
+            }
+            
+            // 更新合计值（只使用最后一行的数据）
+            totals[5] = finalRetainQuantity;
+            totals[6] = finalGoodQuantity;
+            totals[7] = finalDifference;
+            
+            // 添加合计行
+            const totalRow = ['', '', '', '', '合计'];
+            totals.forEach(total => totalRow.push(total));
+            totalRow.push(''); // 备注列留空
+            rowsToExport.push(totalRow);
+            
+            // 创建工作表
+            const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rowsToExport]);
+            
+            // 设置数量列的数字格式
+            const numberCols = ['F', 'G', 'H', 'I', 'J', 'K', 'L', 'M']; // 对应：毛坯数量到差额
+            numberCols.forEach(col => {
+                for (let row = 2; row <= rowsToExport.length + 1; row++) { // 从第2行开始（表头是第1行）
+                    const cellAddress = `${col}${row}`;
+                    if (worksheet[cellAddress]) {
+                        worksheet[cellAddress].t = 'n'; // 设置为数字类型
+                        worksheet[cellAddress].z = '#,##0.00'; // 设置数字格式为千分位两位小数
+                    }
+                }
+            });
+            
+            // 设置合计行的样式（加粗）
+            const totalRowIndex = rowsToExport.length + 1;
+            for (let col = 1; col <= headers.length; col++) {
+                const cellAddress = XLSX.utils.encode_cell({r: totalRowIndex - 1, c: col - 1});
+                if (worksheet[cellAddress]) {
+                    worksheet[cellAddress].s = {
+                        font: {bold: true}
+                    };
+                }
+            }
+            
+            // 创建工作簿
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, '收发货记录');
+            
+            // 导出文件
+            XLSX.writeFile(workbook, `收发货记录_${new Date().toISOString().slice(0, 10)}.xlsx`);
+            
+            // 显示成功提示
+            showToast('数据导出成功！', 'success');
+        }
     </script>
 
     <!-- Toast 提示 -->
@@ -6453,11 +6846,7 @@
         </div>
     </div>
 
-    <!-- 页脚 -->
-    <div class="bg-primary text-white py-4">
-        <div class="px-4 text-center">
-            <div class="text-xs">Designed By AlonZhang</div>
-            <div class="text-xs mt-1">Contact: 136 6511 9291</div>
+
         </div>
     </div>
 </body>
