@@ -504,14 +504,96 @@
                     if (orderSummaryMap.has(orderNumber)) {
                         const summary = orderSummaryMap.get(orderNumber);
                         
-                        // 订单数量：取自订单管理表格单价列前一列（数量列，索引11）
-                        summary.orderQuantity = parseInt(order.cells[11]) || 0;
+                        // 根据数据结构长度确定正确的索引
+                        let quantityIndex, goodQuantityIndex, retainQuantityIndex;
+                        if (order.cells.length === 15) {
+                            // 新的数据结构：[状态, 滞留数量, 良品数量, 差额, 订单编号, 客户, 订单日期, 产品名称, 规格, 数量, 单价, 金额, 交货日期, 技术要求, 备注]
+                            quantityIndex = 9;       // 数量列
+                            goodQuantityIndex = 2;   // 良品数量列
+                            retainQuantityIndex = 1; // 滞留数量列
+                        } else if (order.cells.length === 13) {
+                            // 原始数据结构：[订单编号, 客户, 订单日期, 交货日期, 技术要求, 产品名称, 规格, 数量, 单价, 金额, 备注, 状态, 操作]
+                            quantityIndex = 7;       // 数量列
+                            goodQuantityIndex = -1;  // 原始数据结构中没有良品数量列
+                            retainQuantityIndex = -1; // 原始数据结构中没有滞留数量列
+                        } else {
+                            // 其他数据结构，更准确地识别数量列和金额列
+                            // 辅助函数：解析数字，处理千分位逗号
+                            function parseNum(str) {
+                                if (typeof str !== 'string') return 0;
+                                // 移除千分位逗号和货币符号，然后解析
+                                const cleanStr = str.replace(/[,¥]/g, '');
+                                const num = parseFloat(cleanStr);
+                                return isNaN(num) ? 0 : num;
+                            }
+                            
+                            // 1. 先识别金额列：包含¥符号或千分位逗号的列
+                            const amountIndex = order.cells.findIndex(cell => {
+                                return typeof cell === 'string' && (cell.includes('¥') || cell.includes(','));
+                            });
+                            
+                            // 2. 识别单价列：通常在金额列之前，且包含¥符号或小数
+                            let unitPriceIndex = -1;
+                            if (amountIndex > 0) {
+                                // 从金额列往前找单价列
+                                for (let i = amountIndex - 1; i >= 0; i--) {
+                                    const cell = order.cells[i];
+                                    if (typeof cell === 'string') {
+                                        if (cell.includes('¥') || (parseNum(cell) > 0 && parseNum(cell) < 1000)) {
+                                            unitPriceIndex = i;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // 3. 确定数量列：
+                            // - 如果找到单价列，数量列通常在单价列之前
+                            // - 如果没找到单价列，但找到金额列，数量列通常在金额列前两列
+                            // - 否则，寻找不包含¥符号和千分位逗号的数字列
+                            if (unitPriceIndex > 0) {
+                                quantityIndex = unitPriceIndex - 1;
+                            } else if (amountIndex > 1) {
+                                quantityIndex = amountIndex - 2;
+                            } else {
+                                // 寻找不包含¥符号和千分位逗号的数字列
+                                const numericColumns = order.cells.map((cell, index) => {
+                                    const num = parseNum(cell);
+                                    // 数量列通常是整数，且不包含货币符号和千分位逗号
+                                    const isQuantity = typeof cell === 'string' && !cell.includes('¥') && !cell.includes(',') && Number.isInteger(num) && num > 0;
+                                    return { index, value: num, isQuantity };
+                                }).filter(col => col.isQuantity);
+                                
+                                // 找到最大的整数列，假设是数量
+                                if (numericColumns.length > 0) {
+                                    numericColumns.sort((a, b) => b.value - a.value);
+                                    quantityIndex = numericColumns[0].index;
+                                } else {
+                                    // 最后尝试，假设数量列在第9位
+                                    quantityIndex = 9;
+                                }
+                            }
+                            
+                            goodQuantityIndex = -1;
+                            retainQuantityIndex = -1;
+                        }
                         
-                        // 良品数量：订单管理表格中良品数量列（索引2）
-                        summary.goodQuantity = parseInt(order.cells[2]) || 0;
+                        // 获取订单数量，处理千分位逗号
+                        const quantityStr = order.cells[quantityIndex];
+                        const cleanQuantityStr = typeof quantityStr === 'string' ? quantityStr.replace(/[,¥]/g, '') : quantityStr;
+                        summary.orderQuantity = parseInt(cleanQuantityStr) || 0;
                         
-                        // 滞留数量：订单管理表格中滞留数量列（索引1）
-                        summary.retainQuantity = parseInt(order.cells[1]) || 0;
+                        // 仅在有对应列时获取良品数量和滞留数量，处理千分位逗号
+                        if (goodQuantityIndex >= 0) {
+                            const goodQtyStr = order.cells[goodQuantityIndex];
+                            const cleanGoodQtyStr = typeof goodQtyStr === 'string' ? goodQtyStr.replace(/[,¥]/g, '') : goodQtyStr;
+                            summary.goodQuantity = parseInt(cleanGoodQtyStr) || 0;
+                        }
+                        if (retainQuantityIndex >= 0) {
+                            const retainQtyStr = order.cells[retainQuantityIndex];
+                            const cleanRetainQtyStr = typeof retainQtyStr === 'string' ? retainQtyStr.replace(/[,¥]/g, '') : retainQtyStr;
+                            summary.retainQuantity = parseInt(cleanRetainQtyStr) || 0;
+                        }
                     }
                 }
             });
@@ -540,12 +622,12 @@
                             // 电镀数量 = 所有“发货”记录条中“电镀数量”相加
                             summary.electroplatingQuantity += parseInt(delivery.cells[6]) || 0;
                             
-                            // 返修数量 = 所有“发货”记录条中“返修数量”相加
-                            summary.repairQuantity += parseInt(delivery.cells[8]) || 0;
-                            
                             // 报废数量 = 所有“发货”和“收货”记录条中“报废数量”相加
                             summary.scrapQuantity += parseInt(delivery.cells[9]) || 0;
                         }
+                        
+                        // 返修数量 = 所有“收货”和“发货”记录条中“返修数量”相加
+                        summary.repairQuantity += parseInt(delivery.cells[8]) || 0;
                     }
                 }
             });
@@ -621,19 +703,21 @@
                             // 电镀数量 = 所有“发货”记录条中“电镀数量”相加
                             summary.electroplatingQuantity += electroplatingQty;
                             
-                            // 返修数量 = 所有“发货”记录条中“返修数量”相加
-                            summary.repairQuantity += repairQty;
-                            
                             // 报废数量 = 所有“发货”和“收货”记录条中“报废数量”相加
                             summary.scrapQuantity += scrapQty;
                         }
                         
+                        // 返修数量 = 所有“收货”和“发货”记录条中“返修数量”相加
+                        summary.repairQuantity += repairQty;
+                        
                         // 重新计算订单数量和良品数量
                         if (summary.orderQuantity === 0) {
+                            // 如果没有从订单管理表格获取到数量，使用收发货记录中的最大数量
                             summary.orderQuantity = Math.max(electroplatingQty, blankQty, summary.orderQuantity);
                         }
                         
                         if (summary.goodQuantity === 0) {
+                            // 计算良品数量：电镀数量 - 返修数量 - 报废数量
                             summary.goodQuantity = Math.max(0, electroplatingQty - repairQty - scrapQty);
                         }
                     }
