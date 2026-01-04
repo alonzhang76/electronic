@@ -5307,27 +5307,57 @@
             const formattedDate = today.toISOString().split('T')[0];
             deliveryDate.value = formattedDate;
             
-            // 从订单管理表格获取订单编号、产品名称和客户信息
+            // 从订单管理表格或收发货表格获取订单编号、产品名称和客户信息
             function populateOrderNumbers() {
-                const orderTable = document.getElementById('ordersTable');
-                if (!orderTable) return;
-                
-                const rows = orderTable.querySelectorAll('tbody tr');
+                const type = deliveryType.value;
                 
                 // 清空下拉框
                 deliveryOrderId.innerHTML = '<option value="">请选择订单编号</option>';
                 
-                rows.forEach(row => {
-                    const cells = row.querySelectorAll('td');
-                    if (cells.length >= 11) {
-                        // 根据新的表头顺序，状态在第1列（索引0），订单编号在第6列（索引5），客户在第7列（索引6），产品名称在第9列（索引8）
-                        const status = cells[0].textContent.trim();
-                        const orderNumber = cells[5].textContent.trim();
-                        const customer = cells[6].textContent.trim();
-                        const productName = cells[8].textContent.trim();
+                if (type === '发货') {
+                    // 发货时：从收发货管理表格中提取所有"收货"项下的订单编号
+                    // 并过滤掉在订单管理表格中状态为"已完成"的订单编号
+                    
+                    // 1. 先从tableConfigs中获取所有状态为"已完成"的订单编号
+                    const completedOrders = new Set();
+                    const ordersData = tableConfigs.orders.originalData;
+                    
+                    ordersData.forEach(order => {
+                        // 订单数据结构：{cells: [status, retainQuantity, goodQuantity, difference, orderNumber, customer, orderDate, productName, ...]}
+                        const cells = order.cells || [];
+                        const status = cells[0] || ''; // 状态在第1列（索引0）
+                        const orderNumber = cells[4] || ''; // 订单编号在第5列（索引4）
                         
-                        // 过滤掉状态为"已完成"的订单
-                        if (status !== '已完成') {
+                        // 收集所有状态为"已完成"的订单编号
+                        if (status === '已完成') {
+                            completedOrders.add(orderNumber);
+                        }
+                    });
+                    
+                    // 2. 从tableConfigs中获取所有"收货"行的订单编号
+                    const deliveriesData = tableConfigs.deliveries.originalData;
+                    const orderNumbers = new Set();
+                    
+                    deliveriesData.forEach(delivery => {
+                        // 收发货数据结构：{cells: [type, date, orderNumber, customer, productName, ...]}
+                        const cells = delivery.cells || [];
+                        const deliveryType = cells[0] || ''; // 类型在第1列（索引0）
+                        const orderNumber = cells[2] || ''; // 订单编号在第3列（索引2）
+                        
+                        // 只获取类型为"收货"的记录，并且过滤掉已完成的订单
+                        if (deliveryType === '收货' && !completedOrders.has(orderNumber)) {
+                            orderNumbers.add(orderNumber);
+                        }
+                    });
+                    
+                    // 3. 添加唯一的订单编号选项
+                    orderNumbers.forEach(orderNumber => {
+                        if (orderNumber) {
+                            // 从订单管理表格中获取该订单编号对应的客户和产品名称
+                            const order = ordersData.find(o => o.cells && o.cells[4] === orderNumber);
+                            const productName = order ? (order.cells[7] || '') : '';
+                            const customer = order ? (order.cells[5] || '') : '';
+                            
                             const option = document.createElement('option');
                             option.value = orderNumber;
                             option.textContent = orderNumber;
@@ -5335,8 +5365,30 @@
                             option.dataset.customer = customer;
                             deliveryOrderId.appendChild(option);
                         }
-                    }
-                });
+                    });
+                } else if (type === '收货') {
+                    // 收货时：从tableConfigs的订单数据中获取订单编号
+                    const ordersData = tableConfigs.orders.originalData;
+                    
+                    ordersData.forEach(order => {
+                        // 订单数据结构：{cells: [status, retainQuantity, goodQuantity, difference, orderNumber, customer, orderDate, productName, ...]}
+                        const cells = order.cells || [];
+                        const status = cells[0] || ''; // 状态在第1列（索引0）
+                        const orderNumber = cells[4] || ''; // 订单编号在第5列（索引4）
+                        const customer = cells[5] || ''; // 客户在第6列（索引5）
+                        const productName = cells[7] || ''; // 产品名称在第8列（索引7）
+                        
+                        // 过滤掉状态为"已完成"的订单
+                        if (status !== '已完成' && orderNumber) {
+                            const option = document.createElement('option');
+                            option.value = orderNumber;
+                            option.textContent = orderNumber;
+                            option.dataset.productName = productName;
+                            option.dataset.customer = customer;
+                            deliveryOrderId.appendChild(option);
+                        }
+                    });
+                }
             }
             
             // 从订单管理表格获取客户信息
@@ -5421,9 +5473,12 @@
                 }
             }
             
-            // 类型选择变化时更新输入框状态
+            // 类型选择变化时更新输入框状态和订单编号选项
             if (deliveryType) {
-                deliveryType.addEventListener('change', updateInputReadOnlyState);
+                deliveryType.addEventListener('change', function() {
+                    updateInputReadOnlyState();
+                    populateOrderNumbers();
+                });
             }
             
             // 显示模态框
